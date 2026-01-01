@@ -1,0 +1,3 @@
+```markdown
+As a First-Class Mathematics graduate from the University of Warwick, I possess strong expertise in Stochastic Processes, Markov Chains, and Game Theory. Currently, I develop high-performance mathematical models at RAWiGaming, utilizing C++ and Python to optimize trading strategies and automate workflows. My experience in data analysis and predictive modeling, combined with my collaborative skills from leading teams, positions me well to contribute effectively as a Quantitative Analyst at Anson McCade.
+```

@@ -1,0 +1,25 @@
+// Project-local debug tasks
+//
+// For more documentation on how to configure debug tasks,
+// see: https://zed.dev/docs/debugger
+[
+  {
+    "adapter": "python",
+    "label": "Job Tailor",
+    "mode": "launch",
+    "name": "Job Tailor",
+    "type": "python",
+    "request": "launch",
+    "program": "tailor_cv.py",
+    "args": [
+      "--cv-file",
+      "/Users/renejean-marie/code/python/job-tailor/Rene_Jean-Marie_CV.pdf",
+      "--job-url",
+      "https://www.linkedin.com/jobs/view/4348942395",
+      "--out-dir",
+      "outputs",
+    ],
+    "console": "integratedTerminal",
+    "justMyCode": true,
+  },
+]
