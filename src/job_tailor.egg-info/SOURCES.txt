@@ -4,6 +4,7 @@ src/job_tailor/__init__.py
 src/job_tailor/__main__.py
 src/job_tailor/cli.py
 src/job_tailor/core.py
+src/job_tailor/ui_server.py
 src/job_tailor.egg-info/PKG-INFO
 src/job_tailor.egg-info/SOURCES.txt
 src/job_tailor.egg-info/dependency_links.txt

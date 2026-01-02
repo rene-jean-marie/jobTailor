@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import cgi
 import json
 import sys
 import time
@@ -85,24 +84,22 @@ class UiHandler(SimpleHTTPRequestHandler):
             self._send_json({"status": "error", "message": "Expected multipart form data."}, status=400)
             return
 
-        form = cgi.FieldStorage(
-            fp=self.rfile,
-            headers=self.headers,
-            environ={
-                "REQUEST_METHOD": "POST",
-                "CONTENT_TYPE": content_type,
-                "CONTENT_LENGTH": self.headers.get("Content-Length", ""),
-            },
-        )
+        length = self.headers.get("Content-Length")
+        if not length or not length.isdigit():
+            self._send_json({"status": "error", "message": "Missing Content-Length."}, status=411)
+            return
 
-        cv_field = form["cv_file"] if "cv_file" in form else None
-        if not cv_field or not getattr(cv_field, "filename", None):
+        body = self.rfile.read(int(length))
+        fields, files = self._parse_multipart(content_type, body)
+
+        cv_field = files.get("cv_file")
+        if not cv_field or not cv_field.get("filename"):
             self._send_json({"status": "error", "message": "Upload a CV file."}, status=400)
             return
 
-        job_source = form.getfirst("job_source", "url").strip().lower()
-        job_url = form.getfirst("job_url", "").strip()
-        job_text = form.getfirst("job_text", "").strip()
+        job_source = (fields.get("job_source") or "url").strip().lower()
+        job_url = (fields.get("job_url") or "").strip()
+        job_text = (fields.get("job_text") or "").strip()
 
         if job_source == "url" and not job_url:
             self._send_json({"status": "error", "message": "Provide a job URL."}, status=400)
@@ -111,14 +108,14 @@ class UiHandler(SimpleHTTPRequestHandler):
             self._send_json({"status": "error", "message": "Provide job description text."}, status=400)
             return
 
-        include_cover_letter = _parse_bool(form.getfirst("include_cover_letter"), default=True)
-        make_pdf = _parse_bool(form.getfirst("make_pdf"), default=True)
-        debug_artifacts = _parse_bool(form.getfirst("debug_artifacts"), default=False)
-        dry_run = _parse_bool(form.getfirst("dry_run"), default=False)
-        quiet = _parse_bool(form.getfirst("quiet"), default=False)
+        include_cover_letter = _parse_bool(fields.get("include_cover_letter"), default=True)
+        make_pdf = _parse_bool(fields.get("make_pdf"), default=True)
+        debug_artifacts = _parse_bool(fields.get("debug_artifacts"), default=False)
+        dry_run = _parse_bool(fields.get("dry_run"), default=False)
+        quiet = _parse_bool(fields.get("quiet"), default=False)
 
-        model = (form.getfirst("model") or "gpt-5-mini").strip()
-        temp_raw = form.getfirst("temperature") or "0.2"
+        model = (fields.get("model") or "gpt-5-mini").strip()
+        temp_raw = fields.get("temperature") or "0.2"
         try:
             temperature = float(temp_raw)
         except ValueError:
@@ -127,10 +124,10 @@ class UiHandler(SimpleHTTPRequestHandler):
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-        cv_filename = _safe_filename(cv_field.filename)
+        cv_filename = _safe_filename(cv_field["filename"])
         cv_path = UPLOAD_DIR / f"{timestamp}_{cv_filename}"
         with open(cv_path, "wb") as handle:
-            handle.write(cv_field.file.read())
+            handle.write(cv_field["content"])
 
         job_text_path = None
         job_urls: list[str] | None = None
@@ -185,6 +182,66 @@ class UiHandler(SimpleHTTPRequestHandler):
         }
 
         self._send_json(payload)
+
+    def _parse_multipart(self, content_type: str, body: bytes) -> tuple[dict[str, str], dict[str, dict[str, Any]]]:
+        boundary_token = "boundary="
+        if boundary_token not in content_type:
+            return {}, {}
+
+        boundary = content_type.split(boundary_token, 1)[1].strip()
+        if boundary.startswith('"') and boundary.endswith('"'):
+            boundary = boundary[1:-1]
+
+        delimiter = f"--{boundary}".encode("utf-8")
+        sections = body.split(delimiter)
+
+        fields: dict[str, str] = {}
+        files: dict[str, dict[str, Any]] = {}
+
+        for section in sections:
+            if not section or section in {b"--\r\n", b"--"}:
+                continue
+            if section.startswith(b"\r\n"):
+                section = section[2:]
+            if section.endswith(b"\r\n"):
+                section = section[:-2]
+
+            header_blob, _, content = section.partition(b"\r\n\r\n")
+            if not header_blob:
+                continue
+
+            headers: dict[str, str] = {}
+            for line in header_blob.split(b"\r\n"):
+                if b":" not in line:
+                    continue
+                name, value = line.split(b":", 1)
+                headers[name.decode("utf-8", errors="replace").lower()] = value.decode(
+                    "utf-8", errors="replace"
+                ).strip()
+
+            disposition = headers.get("content-disposition", "")
+            disp_parts = [part.strip() for part in disposition.split(";") if part.strip()]
+            disp_params: dict[str, str] = {}
+            for part in disp_parts[1:]:
+                if "=" not in part:
+                    continue
+                key, value = part.split("=", 1)
+                value = value.strip()
+                if value.startswith('"') and value.endswith('"'):
+                    value = value[1:-1]
+                disp_params[key.strip()] = value
+
+            name = disp_params.get("name")
+            filename = disp_params.get("filename")
+            if not name:
+                continue
+
+            if filename:
+                files[name] = {"filename": filename, "content": content}
+            else:
+                fields[name] = content.decode("utf-8", errors="replace").strip()
+
+        return fields, files
 
 
 def run(host: str = "127.0.0.1", port: int = 8000) -> None:
