@@ -6,7 +6,7 @@ import sys
 import textwrap
 from datetime import date
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import requests
 from bs4 import BeautifulSoup
@@ -193,19 +193,33 @@ def build_cover_letter_prompt(
     ).strip()
 
 
-def generate_with_openai(model: str, prompt: str, temperature: float) -> str:
+def generate_with_openai(model: str, prompt: str, temperature: Optional[float]) -> str:
     client = OpenAI()
+    if temperature is not None and (temperature < 0 or temperature > 2):
+        raise ValueError(f"temperature must be between 0 and 2, got {temperature}")
+
+    request_kwargs = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+    }
+
+    if temperature is not None and not model.startswith("gpt-5"):
+        request_kwargs["temperature"] = temperature
     try:
-        resp = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": prompt},
-            ],
-            temperature=temperature,
-        )
+        resp = client.chat.completions.create(**request_kwargs)
     except Exception as e:
-        raise RuntimeError(f"OpenAI API call failed: {e}") from e
+        msg = str(e)
+        if "temperature" in msg and "Only the default (1) value is supported" in msg:
+            request_kwargs.pop("temperature", None)
+            try:
+                resp = client.chat.completions.create(**request_kwargs)
+            except Exception as retry_err:
+                raise RuntimeError(f"OpenAI API call failed: {retry_err}") from retry_err
+        else:
+            raise RuntimeError(f"OpenAI API call failed: {e}") from e
 
     # Safely extract textual content; handle potential None content
     content = ""
@@ -246,14 +260,35 @@ def generate_dry_run(cv_text: str, job_text: str) -> str:
 
 
 def parse_json_response(raw: str) -> dict:
-    cleaned = raw.strip()
-    if cleaned.startswith("```"):
-        cleaned = cleaned.strip("`")
-        cleaned = cleaned.replace("json", "", 1).strip()
+    text = raw.strip()
+
+    if "```" in text:
+        parts = text.split("```")
+        for i in range(1, len(parts), 2):
+            block = parts[i].strip()
+            if block.lower().startswith("json"):
+                block = block[4:].strip()
+            try:
+                parsed = json.loads(block)
+                if isinstance(parsed, dict):
+                    return parsed
+            except json.JSONDecodeError:
+                continue
+
+    start_candidates = [pos for pos in (text.find("{"), text.find("[")) if pos != -1]
+    if not start_candidates:
+        raise ValueError("Invalid JSON response: no JSON object/array found")
+
+    start = min(start_candidates)
+    decoder = json.JSONDecoder()
     try:
-        return json.loads(cleaned)
+        parsed, _ = decoder.raw_decode(text[start:])
     except json.JSONDecodeError as exc:
         raise ValueError(f"Invalid JSON response: {exc}") from exc
+
+    if not isinstance(parsed, dict):
+        raise ValueError("Invalid JSON response: expected a JSON object")
+    return parsed
 
 
 def markdown_to_pdf(markdown_text: str, output_path: Path) -> None:
@@ -349,10 +384,11 @@ def process_job(
             print(f"[job:{slug}] {step}")
 
     output_dir = out_dir
+    base_name = ""
     if dry_run:
         log("Generate output (dry run)")
         output_md = generate_dry_run(cv_text, job_text)
-        output_dir = out_dir / build_output_dir_name(
+        base_name = build_output_dir_name(
             "unknown-company", "unknown-role", date.today().isoformat()
         )
     else:
@@ -377,7 +413,7 @@ def process_job(
 
         company_name = job_json.get("company") or "unknown-company"
         role_name = job_json.get("title") or "unknown-role"
-        output_dir = out_dir / build_output_dir_name(
+        base_name = build_output_dir_name(
             str(company_name), str(role_name), date.today().isoformat()
         )
 
@@ -406,11 +442,10 @@ def process_job(
 
     log("Write outputs")
     output_dir.mkdir(parents=True, exist_ok=True)
-    cv_md_path = output_dir / "cv.md"
-    cover_md_path = output_dir / "cover_letter.md"
-    cv_pdf_path = output_dir / "cv.pdf"
-    cover_pdf_path = output_dir / "cover_letter.pdf"
-    debug_dir = output_dir / "debug"
+    cv_md_path = output_dir / f"{base_name}_cv.md"
+    cover_md_path = output_dir / f"{base_name}_cover_letter.md"
+    cv_pdf_path = output_dir / f"{base_name}_cv.pdf"
+    cover_pdf_path = output_dir / f"{base_name}_cover_letter.pdf"
 
     if output_md:
         cv_md_path.write_text(output_md, encoding="utf-8")
@@ -422,17 +457,21 @@ def process_job(
         created_paths = [cv_md_path, cover_md_path]
 
         if debug_artifacts:
-            debug_dir.mkdir(parents=True, exist_ok=True)
-            (debug_dir / "candidate.json").write_text(
-                candidate_json_text, encoding="utf-8"
-            )
-            (debug_dir / "job.json").write_text(job_json_text, encoding="utf-8")
-            (debug_dir / "mapping.md").write_text(mapping_md, encoding="utf-8")
-            (debug_dir / "cv_draft.md").write_text(cv_draft, encoding="utf-8")
-            (debug_dir / "ats_audit.json").write_text(
+            debug_paths = [
+                output_dir / f"{base_name}_candidate.json",
+                output_dir / f"{base_name}_job.json",
+                output_dir / f"{base_name}_mapping.md",
+                output_dir / f"{base_name}_cv_draft.md",
+                output_dir / f"{base_name}_ats_audit.json",
+            ]
+            debug_paths[0].write_text(candidate_json_text, encoding="utf-8")
+            debug_paths[1].write_text(job_json_text, encoding="utf-8")
+            debug_paths[2].write_text(mapping_md, encoding="utf-8")
+            debug_paths[3].write_text(cv_draft, encoding="utf-8")
+            debug_paths[4].write_text(
                 json.dumps(ats_audit, indent=2), encoding="utf-8"
             )
-            created_paths.append(debug_dir)
+            created_paths.extend(debug_paths)
 
     if make_pdf:
         log("Render PDFs")
@@ -496,7 +535,7 @@ def main() -> int:
         default="outputs",
         help="Output directory for generated files",
     )
-    parser.add_argument("--model", default="gpt-4o-mini", help="OpenAI model")
+    parser.add_argument("--model", default="gpt-5-mini", help="OpenAI model")
     parser.add_argument("--temperature", type=float, default=0.2)
     parser.add_argument(
         "--dry-run",

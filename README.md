@@ -28,11 +28,11 @@ python tailor_cv.py \
   --out-dir outputs
 ```
 
-Outputs (per job, in a folder named `<company>_<role>_<date_created>`):
-- `outputs/<company>_<role>_<date_created>/cv.md`
-- `outputs/<company>_<role>_<date_created>/cover_letter.md`
-- `outputs/<company>_<role>_<date_created>/cv.pdf` (unless `--no-pdf`)
-- `outputs/<company>_<role>_<date_created>/cover_letter.pdf` (unless `--no-pdf`)
+Outputs (per job, files are prefixed with `<company>_<role>_<date_created>`):
+- `outputs/<company>_<role>_<date_created>_cv.md`
+- `outputs/<company>_<role>_<date_created>_cover_letter.md`
+- `outputs/<company>_<role>_<date_created>_cv.pdf` (unless `--no-pdf`)
+- `outputs/<company>_<role>_<date_created>_cover_letter.pdf` (unless `--no-pdf`)
 
 ## Notes
 
