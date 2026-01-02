@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JobTailor Studio</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="page">
+      <div class="noise"></div>
+
+      <header class="header">
+        <div class="brand">
+          <div class="logo" aria-hidden="true"></div>
+          <div>
+            <h1 class="title">JobTailor Studio</h1>
+            <p class="subtitle">Interactive workspace for ATS-focused tailoring packs.</p>
+          </div>
+        </div>
+        <div class="status-pills">
+          <div class="pill">Latest model: GPT-5</div>
+          <div class="pill">Drafts saved automatically</div>
+          <div class="pill">0% hallucination policy</div>
+        </div>
+      </header>
+
+      <section class="grid">
+        <div class="stack">
+          <div class="card">
+            <h2>Inputs</h2>
+            <p>Bring your base CV, then choose a job source and extract the signals.</p>
+
+            <div class="upload">
+              <strong>Base CV</strong>
+              <span class="subtitle" data-cv-label>PDF, Markdown, or text accepted</span>
+              <input data-cv-file type="file" accept=".pdf,.md,.txt" hidden />
+              <button type="button" data-cv-button>Choose file</button>
+            </div>
+
+            <div class="field" style="margin-top: 16px;">
+              <label>Job source</label>
+              <div class="segmented">
+                <button class="active" data-segment="url" type="button">Paste URL</button>
+                <button data-segment="text" type="button">Paste text</button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Job URL or title</label>
+              <input data-source-input type="url" placeholder="https://www.linkedin.com/jobs/view/..." />
+            </div>
+
+            <div class="field">
+              <label>Job description</label>
+              <textarea data-source-text disabled placeholder="Paste the full job description here"></textarea>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Options</h2>
+            <p>Shape the tone, output format, and the depth of the ATS rewrite.</p>
+            <div class="split">
+              <div class="toggle">
+                <span>Include cover letter</span>
+                <input data-include-cover type="checkbox" checked />
+              </div>
+              <div class="toggle">
+                <span>Export PDF pack</span>
+                <input data-make-pdf type="checkbox" checked />
+              </div>
+              <div class="toggle">
+                <span>Save debug artifacts</span>
+                <input data-debug type="checkbox" />
+              </div>
+              <div class="toggle">
+                <span>Quiet mode</span>
+                <input data-quiet type="checkbox" />
+              </div>
+              <div class="toggle">
+                <span>Dry run (no API calls)</span>
+                <input data-dry-run type="checkbox" />
+              </div>
+            </div>
+
+            <div class="slider" style="margin-top: 16px;">
+              <label>ATS strictness</label>
+              <input data-ats type="range" min="0" max="30" value="18" />
+              <span class="subtitle">Balances human readability with keyword coverage.</span>
+            </div>
+
+            <div class="field" style="margin-top: 12px;">
+              <label>Output tone</label>
+              <select>
+                <option>Analytical, crisp, metrics-forward</option>
+                <option>Warm but professional</option>
+                <option>Consultative and strategic</option>
+              </select>
+            </div>
+
+            <div class="split" style="margin-top: 16px;">
+              <div class="field">
+                <label>Model</label>
+                <input data-model type="text" value="gpt-5-mini" />
+              </div>
+              <div class="field">
+                <label>Temperature</label>
+                <input data-temperature type="text" value="0.2" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stack">
+          <div class="card">
+            <h2>Tailoring run</h2>
+            <p>Preview the workflow and export a clean ATS-ready pack.</p>
+            <div class="metrics">
+              <div class="metric-row">
+                <span class="subtitle">Projected ATS score</span>
+                <span class="metric-value" data-score>80%</span>
+              </div>
+              <div class="metric-row">
+                <span class="subtitle">Runtime</span>
+                <span class="badge">~2 min</span>
+              </div>
+              <div class="metric-row">
+                <span class="subtitle">Matching roles</span>
+                <span class="badge">Quant + Data + Risk</span>
+              </div>
+            </div>
+
+            <div class="progress" style="margin-top: 16px;">
+              <div class="metric-row">
+                <strong data-progress-label>Ready to tailor</strong>
+                <span class="subtitle">Pipeline</span>
+              </div>
+              <div class="bar"><div class="fill" data-progress-fill></div></div>
+              <ul class="list" style="margin-top: 12px;">
+                <li data-progress-item><span></span>Parsing job description</li>
+                <li data-progress-item><span></span>Mapping skills to ATS keywords</li>
+                <li data-progress-item><span></span>Rewriting impact bullets</li>
+                <li data-progress-item><span></span>Generating cover letter</li>
+                <li data-progress-item><span></span>Exporting PDF pack</li>
+              </ul>
+            </div>
+
+            <div class="actions" style="margin-top: 16px;">
+              <button class="primary" data-run type="button">Tailor Pack</button>
+              <button class="secondary" type="button">View debug logs</button>
+            </div>
+
+            <div class="output" data-output style="margin-top: 16px;">
+              <strong>Output files</strong>
+              <ul class="output-list" data-output-list></ul>
+            </div>
+
+            <div class="error" data-error hidden></div>
+          </div>
+
+          <div class="card">
+            <h2>Output preview</h2>
+            <p>Switch between deliverables before exporting the pack.</p>
+            <div class="tabs">
+              <button class="active" data-tab="cv" type="button">CV</button>
+              <button data-tab="cover" type="button">Cover letter</button>
+              <button data-tab="audit" type="button">ATS audit</button>
+            </div>
+            <div class="preview" data-preview>
+SUMMARY
+Data-driven analyst with 6+ years building revenue intelligence and automation.
+
+CORE SKILLS
+Python, SQL, LLM pipelines, ATS optimization, analytics.
+
+IMPACT
+- Reframed accomplishments into ATS-friendly outcomes (+32% recruiter callbacks).
+- Automated tailoring workflow for multi-role applications.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <span>JobTailor v0.1 - Local runs with private inputs</span>
+        <span>Designed for fast iteration, not another dashboard</span>
+      </footer>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
