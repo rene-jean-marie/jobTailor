@@ -12,7 +12,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-from .core import slugify_token, tailor_documents
+from .core import markdown_to_pdf, slugify_token, tailor_documents
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 ASSETS_DIR = ROOT_DIR / "assets" / "ui"
@@ -160,6 +160,22 @@ class UiHandler(SimpleHTTPRequestHandler):
         cv_preview = ""
         cover_preview = ""
         audit_preview = ""
+
+        if make_pdf:
+            regenerated: list[Path] = []
+            for path in created_paths:
+                if path.name.endswith("_cv.md"):
+                    pdf_path = path.with_suffix(".pdf")
+                    markdown_to_pdf(path.read_text(encoding="utf-8"), pdf_path)
+                    if pdf_path not in created_paths:
+                        regenerated.append(pdf_path)
+                if path.name.endswith("_cover_letter.md"):
+                    pdf_path = path.with_suffix(".pdf")
+                    markdown_to_pdf(path.read_text(encoding="utf-8"), pdf_path)
+                    if pdf_path not in created_paths:
+                        regenerated.append(pdf_path)
+            if regenerated:
+                created_paths.extend(regenerated)
 
         for path in created_paths:
             if path.name.endswith("_cv.md"):

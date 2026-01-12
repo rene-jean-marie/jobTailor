@@ -309,6 +309,8 @@ def markdown_to_pdf(markdown_text: str, output_path: Path) -> None:
             "–": "-",
             "—": "--",
             "•": "-",
+            "→": "->",
+            "←": "<-",
             "“": '"',
             "”": '"',
             "‘": "'",

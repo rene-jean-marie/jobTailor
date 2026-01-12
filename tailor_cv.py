@@ -301,10 +301,13 @@ def markdown_to_pdf(markdown_text: str, output_path: Path) -> None:
             "–": "-",
             "—": "--",
             "•": "-",
+            "→": "->",
+            "←": "<-",
             "“": '"',
             "”": '"',
             "‘": "'",
             "’": "'",
+            "‑": "-",
             "\u00a0": " ",
         }
         for src, dst in replacements.items():
